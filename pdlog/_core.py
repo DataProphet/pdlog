@@ -14,18 +14,33 @@ class FrameLogMethods:
     def __init__(self, data: pd.DataFrame) -> None:
         self._data = data
 
-    def __call__(self, *args, **kwargs) -> None:
-        raise NotImplementedError
+    @staticmethod
+    def add_hooks(method_name: str, after_hook=None):
+        """
+        Return an accessor method that calls self._data.method_name with hooks.
 
-    @wraps(pd.DataFrame.dropna)
-    def dropna(self, *args, **kwargs):
-        new_data = self._data.dropna(*args, **kwargs)
-        log_filter(self._data, new_data, "dropna")
-        return new_data
+        Used to patch the underlying pd.DataFrame methods with added logging.
+        """
+        # TODO: Not sure of this vs wrapping pd.DataFrame method...
+        df_method = None
+
+        # @wraps(getattr(pd.DataFrame, method_name))
+        def inner(self, *args, **kwargs):
+
+            df_method = getattr(self._data, method_name)
+
+            after_df = df_method(*args, **kwargs)
+
+            if after_hook is not None:
+                after_hook(self._data, after_df, method_name)
+
+            return after_df
+
+        return wraps(df_method)(inner)
 
 
 def log_filter(before_df: pd.DataFrame, after_df: pd.DataFrame, function: str) -> None:
-    """Log changes in a dataframe for filtering operations (drop rows/cols)."""
+    """Log changes in a dataframe for filter operations (dropped rows/cols)."""
 
     n_rows_before = len(before_df)
     n_rows_after = len(after_df)
@@ -59,3 +74,15 @@ def log_filter(before_df: pd.DataFrame, after_df: pd.DataFrame, function: str) -
             percent(n_rows_dropped, n_rows_before),
             n_rows_after,
         )
+
+
+settings = {
+    "dropna": {"after_hook": log_filter},
+    "drop_duplicates": {"after_hook": log_filter},
+}
+for method_name, kwargs in settings.items():
+    setattr(
+        FrameLogMethods,
+        method_name,
+        FrameLogMethods.add_hooks(method_name, **kwargs)
+    )

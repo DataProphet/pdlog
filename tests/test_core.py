@@ -1,4 +1,5 @@
 import logging
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ def caplog(caplog):
     return caplog
 
 
+# TODO: Move filter tests to another module?
 def test_filter_rows_none(caplog):
     before_df = pd.DataFrame([0, 1, 2])
     after_df = pd.DataFrame([0, 1, 2])
@@ -69,3 +71,25 @@ def test_filter_rows_added(caplog):
         match="function: test_filter added rows, it is not a filter operation"
     ):
         pdlog.log_filter(before_df, after_df, "test_filter")
+
+
+def test_accessor_add_hooks():
+    before_df = mock.Mock()
+    after_df = mock.Mock()
+    before_df.logged_method = mock.Mock(return_value=after_df)
+    after_hook = mock.Mock()
+
+    # Patch the accessor class' logged_method
+    accessor_cls = pdlog.FrameLogMethods
+    accessor_cls.logged_method = accessor_cls.add_hooks("logged_method", after_hook)
+
+    # Instantiate an accessor and call the patched method
+    accessor = pdlog.FrameLogMethods(before_df)
+    args = (0, 1, 2)
+    kwargs = dict(key0=0, key1=1, key2=2)
+    accessor.logged_method(*args, **kwargs)
+
+    # patched method calls the underlying logged_method with args and kwargs.
+    before_df.logged_method.assert_called_with(*args, **kwargs)
+    # patched method calls after_hook with before_df and the result of logged_method.
+    after_hook.assert_called_with(before_df, after_df, "logged_method")
