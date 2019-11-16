@@ -88,3 +88,13 @@ def test_filter_cols_some(caplog):
     assert caplog.record_tuples == [
         ("pdlog", logging.INFO, "test_filter: dropped 2 columns (67%): ['y', 'z']"),
     ]
+
+
+def test_filter_cols_added(caplog):
+    before_df = pd.DataFrame({"x": [1, 2, 3]})
+    after_df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]})
+    with pytest.raises(
+        ValueError,
+        match="function: test_filter added columns, it is not a filter operation",
+    ):
+        log_filter(before_df, after_df, "test_filter")

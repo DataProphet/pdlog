@@ -15,25 +15,30 @@ def log_filter(before_df: pd.DataFrame, after_df: pd.DataFrame, function: str) -
     n_rows_after = len(after_df)
     n_rows_dropped = n_rows_before - n_rows_after
 
-    cols_dropped = sorted(set(before_df.columns) - set(after_df.columns))
     n_cols_before = before_df.shape[1]
-    n_cols_dropped = len(cols_dropped)
+    n_cols_after = after_df.shape[1]
+    n_cols_dropped = n_cols_before - n_cols_after
 
     if n_rows_before < n_rows_after:
         raise ValueError(
             f"function: {function} added rows, it is not a filter operation"
+        )
+    elif n_cols_before < n_cols_after:
+        raise ValueError(
+            f"function: {function} added columns, it is not a filter operation"
         )
     elif n_rows_before == 0:
         logger.info("%s: empty input dataframe", function)
     elif n_rows_after == 0:
         logger.critical("%s: dropped all rows", function)
     elif n_cols_dropped > 0:
+        dropped_cols = sorted(set(before_df.columns) - set(after_df.columns))
         logger.info(
             "%s: dropped %d columns (%s): %s",
             function,
             n_cols_dropped,
             percent(n_cols_dropped, n_cols_before),
-            cols_dropped,
+            dropped_cols,
         )
     elif n_rows_dropped == 0:
         logger.info("%s: dropped no rows", function)
