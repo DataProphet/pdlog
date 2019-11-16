@@ -79,3 +79,12 @@ def test_filter_rows_added(caplog):
         match="function: test_filter added rows, it is not a filter operation",
     ):
         log_filter(before_df, after_df, "test_filter")
+
+
+def test_filter_cols_some(caplog):
+    before_df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]})
+    after_df = pd.DataFrame({"x": [1, 2, 3]})
+    log_filter(before_df, after_df, "test_filter")
+    assert caplog.record_tuples == [
+        ("pdlog", logging.INFO, "test_filter: dropped 2 columns (67%): ['y', 'z']"),
+    ]

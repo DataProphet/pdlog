@@ -15,7 +15,7 @@ def log_filter(before_df: pd.DataFrame, after_df: pd.DataFrame, function: str) -
     n_rows_after = len(after_df)
     n_rows_dropped = n_rows_before - n_rows_after
 
-    cols_dropped = sorted(set(after_df.columns) - set(before_df.columns))
+    cols_dropped = sorted(set(before_df.columns) - set(after_df.columns))
     n_cols_before = before_df.shape[1]
     n_cols_dropped = len(cols_dropped)
 
