@@ -13,88 +13,77 @@ def caplog(caplog):
     return caplog
 
 
-def test_filter_rows_none(caplog):
-    before_df = pd.DataFrame([0, 1, 2])
-    after_df = pd.DataFrame([0, 1, 2])
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.INFO, "test_filter: dropped no rows")
-    ]
+@pytest.mark.parametrize(
+    "before_df,after_df,expected_record_tuples",
+    [
+        pytest.param(
+            pd.DataFrame([0, 1, 2]),
+            pd.DataFrame([0, 1, 2]),
+            [("pdlog", logging.INFO, "fn: dropped no rows")],
+            id="no_rows",
+        ),
+        pytest.param(
+            pd.DataFrame([0, 1, 2]),
+            pd.DataFrame(),
+            [("pdlog", logging.CRITICAL, "fn: dropped all rows")],
+            id="all_rows",
+        ),
+        pytest.param(
+            pd.DataFrame([0, 1, 2]),
+            pd.DataFrame([0, 1]),
+            [("pdlog", logging.INFO, "fn: dropped 1 rows (33%), 2 rows remaining")],
+            id="some_rows",
+        ),
+        pytest.param(
+            pd.DataFrame(np.arange(101)),
+            pd.DataFrame(np.arange(100)),
+            [("pdlog", logging.INFO, "fn: dropped 1 rows (<1%), 100 rows remaining")],
+            id="less_1pct_rows",
+        ),
+        pytest.param(
+            pd.DataFrame(np.arange(101)),
+            pd.DataFrame([0]),
+            [("pdlog", logging.INFO, "fn: dropped 100 rows (>99%), 1 rows remaining")],
+            id="greater_99pct_rows",
+        ),
+        pytest.param(
+            pd.DataFrame(),
+            pd.DataFrame(),
+            [("pdlog", logging.INFO, "fn: empty input dataframe")],
+            id="empty_df",
+        ),
+        pytest.param(
+            pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]}),
+            pd.DataFrame({"x": [1, 2, 3]}),
+            [("pdlog", logging.INFO, "fn: dropped 2 columns (67%): ['y', 'z']")],
+            id="some_cols",
+        ),
+    ],
+)
+def test_filter(caplog, before_df, after_df, expected_record_tuples):
+    log_filter(before_df, after_df, "fn")
+    assert caplog.record_tuples == expected_record_tuples
 
 
-def test_filter_rows_all(caplog):
-    before_df = pd.DataFrame([0, 1, 2])
-    after_df = pd.DataFrame()
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.CRITICAL, "test_filter: dropped all rows")
-    ]
-
-
-def test_filter_rows_some(caplog):
-    before_df = pd.DataFrame([0, 1, 2])
-    after_df = pd.DataFrame([0, 1])
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.INFO, "test_filter: dropped 1 rows (33%), 2 rows remaining")
-    ]
-
-
-def test_filter_rows_less_1pct(caplog):
-    before_df = pd.DataFrame(np.arange(101))
-    after_df = pd.DataFrame(np.arange(100))
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.INFO, "test_filter: dropped 1 rows (<1%), 100 rows remaining")
-    ]
-
-
-def test_filter_rows_greater_99pct(caplog):
-    before_df = pd.DataFrame(np.arange(101))
-    after_df = pd.DataFrame([0])
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        (
-            "pdlog",
-            logging.INFO,
-            "test_filter: dropped 100 rows (>99%), 1 rows remaining",
-        )
-    ]
-
-
-def test_filter_empty_df(caplog):
-    before_df = pd.DataFrame()
-    after_df = pd.DataFrame()
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.INFO, "test_filter: empty input dataframe")
-    ]
-
-
-def test_filter_rows_added(caplog):
-    before_df = pd.DataFrame()
-    after_df = pd.DataFrame([0, 1, 2])
-    with pytest.raises(
-        ValueError,
-        match="function: test_filter added rows, it is not a filter operation",
-    ):
-        log_filter(before_df, after_df, "test_filter")
-
-
-def test_filter_cols_some(caplog):
-    before_df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]})
-    after_df = pd.DataFrame({"x": [1, 2, 3]})
-    log_filter(before_df, after_df, "test_filter")
-    assert caplog.record_tuples == [
-        ("pdlog", logging.INFO, "test_filter: dropped 2 columns (67%): ['y', 'z']")
-    ]
-
-
-def test_filter_cols_added(caplog):
-    before_df = pd.DataFrame({"x": [1, 2, 3]})
-    after_df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]})
-    with pytest.raises(
-        ValueError,
-        match="function: test_filter added columns, it is not a filter operation",
-    ):
-        log_filter(before_df, after_df, "test_filter")
+@pytest.mark.parametrize(
+    "before_df,after_df,error,error_msg",
+    [
+        pytest.param(
+            pd.DataFrame(),
+            pd.DataFrame([0, 1, 2]),
+            ValueError,
+            "function: fn added rows, it is not a valid filter operation",
+            id="add_rows",
+        ),
+        pytest.param(
+            pd.DataFrame({"x": [1, 2, 3]}),
+            pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]}),
+            ValueError,
+            "function: fn added columns, it is not a valid filter operation",
+            id="add_cols",
+        ),
+    ],
+)
+def test_filter_raises(caplog, before_df, after_df, error, error_msg):
+    with pytest.raises(error, match=error_msg):
+        log_filter(before_df, after_df, "fn")

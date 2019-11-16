@@ -21,11 +21,11 @@ def log_filter(before_df: pd.DataFrame, after_df: pd.DataFrame, function: str) -
 
     if n_rows_before < n_rows_after:
         raise ValueError(
-            f"function: {function} added rows, it is not a filter operation"
+            f"function: {function} added rows, it is not a valid filter operation"
         )
     elif n_cols_before < n_cols_after:
         raise ValueError(
-            f"function: {function} added columns, it is not a filter operation"
+            f"function: {function} added columns, it is not a valid filter operation"
         )
     elif n_rows_before == 0:
         logger.info("%s: empty input dataframe", function)
