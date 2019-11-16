@@ -1,4 +1,4 @@
-from pdlog._utils import percent
+from pdlog.utils import percent
 
 
 def test_percent_zero():
