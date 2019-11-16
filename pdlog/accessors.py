@@ -1,4 +1,5 @@
 from functools import wraps
+from typing import Callable
 
 import pandas as pd
 
@@ -11,14 +12,17 @@ class FrameLogMethods:
         self._data = data
 
     @staticmethod
-    def add_hooks(method_name: str, after_hook=None):
+    def add_hooks(
+        method_name: str,
+        after_hook: Callable[[pd.DataFrame, pd.DataFrame, str], None] = None,
+    ):
         """
         Return an accessor method that calls self._data.method_name with hooks.
 
         Used to patch the underlying pd.DataFrame methods with added logging.
         """
-        df_method = None
 
+        @wraps(getattr(pd.DataFrame, method_name))
         def inner(self, *args, **kwargs):
 
             df_method = getattr(self._data, method_name)
@@ -30,7 +34,7 @@ class FrameLogMethods:
 
             return after_df
 
-        return wraps(df_method)(inner)
+        return inner
 
 
 LOGGED_METHODS = {

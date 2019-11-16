@@ -1,13 +1,19 @@
+import pandas as pd
+
 from unittest.mock import Mock
 
 from pdlog.accessors import FrameLogMethods
 
 
-def test_accessor_add_hooks():
+def test_accessor_add_hooks(monkeypatch):
     before_df = Mock()
     after_df = Mock()
     before_df.logged_method = Mock(return_value=after_df)
     after_hook = Mock()
+
+    # Also need to mock the method on pd.DataFrame, since the patched method calls
+    # functools.wrap on the original pd.DataFrame method.
+    pd.DataFrame.logged_method = Mock()
 
     # Patch the accessor class' logged_method
     accessor_cls = FrameLogMethods
