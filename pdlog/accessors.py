@@ -1,6 +1,4 @@
-from datetime import datetime
 from functools import wraps
-from typing import Callable
 
 import pandas as pd
 
@@ -12,52 +10,44 @@ class FrameLogMethods:
     def __init__(self, data: pd.DataFrame) -> None:
         self._data = data
 
-    @staticmethod
-    def add_hooks(
-        method_name: str,
-        after_hook: Callable[[pd.DataFrame, pd.DataFrame, str], None] = None,
-    ):
-        """
-        Return an accessor method that calls self._data.method_name with hooks.
-
-        Used to patch the underlying pd.DataFrame methods with added logging.
-        """
-
+    @classmethod
+    def add_logged_method(cls, method_name: str, log_fn: logging.LogFunction):
         @wraps(getattr(pd.DataFrame, method_name))
-        def inner(self, *args, **kwargs):
+        def logged_method(self, *args, **kwargs):
+            return log_fn(self._data, method_name, *args, **kwargs)
 
-            before_time = datetime.now()
+        logged_method.__name__ = method_name
+        setattr(cls, method_name, logged_method)
 
-            df_method = getattr(self._data, method_name)
-
-            after_df = df_method(*args, **kwargs)
-
-            after_time = datetime.now()
-            elapsed = after_time - before_time
-
-            if after_hook is not None:
-                after_hook(self._data, after_df, method_name, args, kwargs, elapsed)
-
-            return after_df
-
-        return inner
+    # @wraps(pd.DataFrame.groupby)
+    # def groupby(self, *args, **kwargs):
+    #     grouped
 
 
 # TODO: Add tests
 # TODO: Use decorators instead?
 # TODO: getitem and setitem seem like a bit of a nightmare... Maybe just don't support it?
 LOGGED_METHODS = {
-    "dropna": {"after_hook": logging.log_filter},
-    "drop_duplicates": {"after_hook": logging.log_filter},
-    "iloc": {"after_hook": logging.log_filter},
-    "loc": {"after_hook": logging.log_filter},
-    "__getitem__": {"after_hook": logging.log_filter},
-    "query": {"after_hook": logging.log_filter},
-    "assign": {"after_hook": logging.log_assign},
-    "set_index": {"after_hook": logging.log_set_index},
-    "reset_index": {"after_hook": logging.log_set_index},
+    "dropna": logging.log_filter,
+    "drop_duplicates": logging.log_filter,
+    "iloc": logging.log_filter,
+    "loc": logging.log_filter,
+    "__getitem__": logging.log_filter,
+    "query": logging.log_filter,
+    "head": logging.log_filter,
+    "tail": logging.log_filter,
+    "sample": logging.log_filter,
+    "drop": logging.log_filter,
+    "assign": logging.log_assign,
+    "set_index": logging.log_change_index,
+    "reset_index": logging.log_change_index,
+    "rename": logging.log_rename,
+    "pivot": logging.log_reshape,
+    "melt": logging.log_reshape,
+    # "groupby": logging.log_groupby,
+    "fillna": logging.log_fillna,
+    "bfill": logging.log_fillna,
+    "ffill": logging.log_fillna,
 }
-for method_name, kwargs in LOGGED_METHODS.items():
-    setattr(
-        FrameLogMethods, method_name, FrameLogMethods.add_hooks(method_name, **kwargs)
-    )
+for method_name, log_fn in LOGGED_METHODS.items():
+    FrameLogMethods.add_logged_method(method_name, log_fn)

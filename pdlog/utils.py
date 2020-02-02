@@ -17,3 +17,16 @@ def percent(n: int, total: int) -> str:
         return ">99%"
     else:
         return f"{round(p)}%"
+
+
+def summarize(iterable, max_items=3) -> str:
+    length = len(iterable)
+    if length <= max_items:
+        return str(list(iterable))
+    else:
+        first, last = iterable[0], iterable[-1]
+        if isinstance(first, str):
+            first = f"'{first}'"
+        if isinstance(last, str):
+            last = f"'{last}'"
+        return f"[{first}, ..., {last}]"
