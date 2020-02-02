@@ -1,4 +1,5 @@
 import logging
+from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
@@ -61,7 +62,14 @@ def caplog(caplog):
     ],
 )
 def test_filter(caplog, before_df, after_df, expected_record_tuples):
-    log_filter(before_df, after_df, "fn")
+    fn_args = Mock()
+    fn_kwargs = Mock()
+    before_df.fn = Mock(return_value=after_df)
+
+    log_filter(before_df, "fn", fn_args, fn_kwargs)
+
+    before_df.fn.assert_called_once_with(fn_args, fn_kwargs)
+
     assert caplog.record_tuples == expected_record_tuples
 
 
@@ -84,6 +92,7 @@ def test_filter(caplog, before_df, after_df, expected_record_tuples):
         ),
     ],
 )
-def test_filter_raises(caplog, before_df, after_df, error, error_msg):
+def test_filter_raises(before_df, after_df, error, error_msg):
+    before_df.fn = Mock(return_value=after_df)
     with pytest.raises(error, match=error_msg):
-        log_filter(before_df, after_df, "fn")
+        log_filter(before_df, "fn")
