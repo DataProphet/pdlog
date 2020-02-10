@@ -1,10 +1,7 @@
 # pdlog
 
-`pdlog` provides logging for pandas operations.
-It's a Python implementation of the R package [tidylog](https://github.com/elbersb/tidylog).
-
-`pdlog` was built after extensive use of `pandas` in production data pipelines.
-Its purpose is to better enable you to monitor and debug your data manipulation.
+`pdlog` provides logging for pandas dataframes.
+Its purpose is to better enable you to monitor and debug your data pipelines.
 
 ## Installation
 
