@@ -1,6 +1,6 @@
-from . import accessors
+from . import accessor
 from . import logging
-from . import utils
+from . import format
 
 
-__all__ = ["accessors", "logging", "utils"]
+__all__ = ["accessor", "logging", "format"]
