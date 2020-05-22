@@ -3,6 +3,8 @@
 `pdlog` provides logging for pandas dataframes.
 Its purpose is to better enable you to monitor and debug your data pipelines.
 
+TODO: Open with an example of where this shines... (Start with the pain)
+
 ## Installation
 
 ```bash

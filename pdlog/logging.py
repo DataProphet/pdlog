@@ -1,37 +1,24 @@
-# NOTE: Have taken care to not keep copies in memory, hence we overwrite original df.
-# TODO: Summarize more things
-# TODO: Could we refactor something out here?
-#       E.g., having to log every time by passing in the function and elapsed time seems
-#       like an abstraction is waiting...
-# TODO: Should elapsed be DEBUG or INFO?
-from datetime import timedelta
 import logging
-from typing_extensions import Protocol
+from typing import Any
 
 import pandas as pd
 
-from .utils import percent, summarize
+from .string import percent
+from .string import summarize
 
 
 logger = logging.getLogger("pdlog")
 
 
-class LogFunction(Protocol):
-    def __call__(
-        self, df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
-    ) -> pd.DataFrame:
-        ...
-
-
-def _apply_df_function(
-    df: pd.DataFrame, function_name: str, *args, **kwargs
+def _call(
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
     function = getattr(df, function_name)
     return function(*args, **kwargs)
 
 
 def log_filter(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
     """Log changes in a dataframe for filter operations (dropped rows/cols)."""
 
@@ -39,7 +26,7 @@ def log_filter(
     n_cols_before = df.shape[1]
     before_columns = df.columns
 
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
+    df = _call(df, function_name, *args, **kwargs)
 
     n_rows_after = len(df)
     n_rows_dropped = n_rows_before - n_rows_after
@@ -47,16 +34,16 @@ def log_filter(
     n_cols_after = df.shape[1]
     n_cols_dropped = n_cols_before - n_cols_after
 
-    # TODO: Can this be cleaned up?
     if n_rows_before < n_rows_after:
-        raise ValueError(
+        raise AssertionError(
             f"function: {function_name} added rows, it is not a valid filter operation"
         )
-    elif n_cols_before < n_cols_after:
-        raise ValueError(
-            f"function: {function_name} added columns, it is not a valid filter operation"
+    if n_cols_before < n_cols_after:
+        raise AssertionError(
+            f"function: {function_name} added columns, "
+            "it is not a valid filter operation"
         )
-    elif n_rows_before == 0:
+    if n_rows_before == 0:
         logger.info("%s: empty input dataframe", function_name)
     elif n_rows_after == 0:
         logger.critical("%s: dropped all rows", function_name)
@@ -81,118 +68,87 @@ def log_filter(
         )
 
     # TODO: Refactor
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
-
-    return df
-
-
-def log_assign(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
-) -> pd.DataFrame:
-    """Log changes in a dataframe for assignment operations (added cols)."""
-
-    before_columns = df.columns
-
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
-
-    # new_columns = [c for c in after_df.columns if c not in before_df.columns]
-    new_columns = df.columns.difference(before_columns).tolist()
-
-    if new_columns:
-        logger.info(
-            "%s: added %d columns: %s", function_name, len(new_columns), new_columns
-        )
-
-    # TODO: Cleanup
-    function_kwargs = {
-        k: v.__name__ if callable(v) else v for k, v in function_kwargs.items()
-    }
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
+    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
 
 def log_change_index(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
 
     before_index_name = df.index.name
     before_index_type = type(df.index).__name__
 
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
+    df = _call(df, function_name, *args, **kwargs)
 
     after_index_name = df.index.name
     after_index_type = type(df.index).__name__
 
-    # HACK
-    elapsed = timedelta(hours=1)
-
     # TODO: Could show first and last vals, not sure if important...
     logger.info(
-        "%s – %ss: set from '%s' (%s) to '%s' (%s)",
+        "%s: set from '%s' (%s) to '%s' (%s)",
         function_name,
-        elapsed.total_seconds(),
         before_index_name,
         before_index_type,
         after_index_name,
         after_index_type,
     )
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
+    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
 
 def log_rename(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
 
     before_index = df.index
     before_columns = df.columns
 
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
+    df = _call(df, function_name, *args, **kwargs)
 
     new_columns = df.columns.difference(before_columns).tolist()
-    if new_columns:
+    new_rows = df.index.difference(before_index).tolist()
+    if new_columns and new_rows:
+        logger.info(
+            "%s: renamed %d rows and %d columns. rows: %s. columns: %s",
+            function_name,
+            len(new_rows),
+            len(new_columns),
+            summarize(new_rows),
+            summarize(new_columns),
+        )
+    elif new_columns:
         logger.info(
             "%s: renamed %d columns: %s",
             function_name,
             len(new_columns),
             summarize(new_columns),
         )
+    elif new_rows:
+        logger.info(
+            "%s: renamed %d rows: %s", function_name, len(new_rows), summarize(new_rows)
+        )
     else:
-        new_rows = df.index.difference(before_index).tolist()
-        if new_rows:
-            logger.info(
-                "%s: renamed %d rows: %s",
-                function_name,
-                len(new_rows),
-                summarize(new_rows),
-            )
+        logger.info("%s: renamed nothing")
 
     # TODO: Refactor to a util function log func args?
     # TODO: util function should also summarize kwargs?
-    function_kwargs = {
-        k: v.__name__ if callable(v) else v for k, v in function_kwargs.items()
-    }
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
+    kwargs = {k: v.__name__ if callable(v) else v for k, v in kwargs.items()}
+    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
 
-def log_reindex(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
-) -> pd.DataFrame:
-    pass
-
-
 def log_reshape(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
 
     before_shape = df.shape
     before_columns = df.columns
 
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
+    df = _call(df, function_name, *args, **kwargs)
 
     logger.info(
         "%s: reshaped from %s %s to %s %s",
@@ -202,53 +158,30 @@ def log_reshape(
         df.shape,
         summarize(df.columns, max_items=5),
     )
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
+    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
 
-# TODO: This one requires the grouping function object...
-# def log_groupby(
-#     df: pd.DataFrame,
-#     function_name: str,
-#     *function_args,
-#     **function_kwargs,
-# ) -> pd.DataFrame:
-
-#     function = getattr(df, function_name)
-
-#     import pdb; pdb.set_trace()
-
-#     before_df = df
-#     after_df = function(*function_args, **function_kwargs)
-
-#     logger.info("%s: reshaped from %s %s to %s %s",
-#                 function, before_df.shape, summarize(before_df.columns, max_items=5),
-#                 after_df.shape, summarize(after_df.columns, max_items=5))
-#     logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
-
-
 def log_fillna(
-    df: pd.DataFrame, function_name: str, *function_args, **function_kwargs
+    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
 
     n_obs = df.shape[0] * df.shape[1]
-    before_nan_mask = df.isna()
+    before_na = df.isna()
 
-    df = _apply_df_function(df, function_name, *function_args, **function_kwargs)
+    df = _call(df, function_name, *args, **kwargs)
 
-    after_nan_mask = df.isna()
-
-    filled_nan_mask = (~after_nan_mask) & before_nan_mask
-    n_filled_nans = filled_nan_mask.sum().sum()
+    filled_na = df.notna() & before_na
+    n_filled = filled_na.sum().sum()
 
     logger.info(
         "%s: filled %d/%d (%s) observations",
         function_name,
-        n_filled_nans,
+        n_filled,
         n_obs,
-        percent(n_filled_nans, n_obs),
+        percent(n_filled, n_obs),
     )
-    logger.debug("args: %s, kwargs: %s", function_args, function_kwargs)
+    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df

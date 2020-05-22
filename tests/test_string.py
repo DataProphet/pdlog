@@ -1,8 +1,8 @@
 import pytest
 
-from pdlog.format import percent
-from pdlog.format import plural
-from pdlog.format import summarize
+from pdlog.string import percent
+from pdlog.string import plural
+from pdlog.string import summarize
 
 
 @pytest.mark.parametrize(
