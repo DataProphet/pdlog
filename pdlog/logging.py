@@ -4,51 +4,68 @@ from typing import Any
 import pandas as pd
 
 from .string import percent
+from .string import plural
 from .string import summarize
 
 
 logger = logging.getLogger("pdlog")
 
 
-def _call(
-    df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
-) -> pd.DataFrame:
-    function = getattr(df, function_name)
-    return function(*args, **kwargs)
+ROW = "row"
+COLUMN = "column"
+OBSERVATION = "observation"
+
+
+def _callattr(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
+    return getattr(obj, name)(*args, **kwargs)
 
 
 def log_filter(
     df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
-    """Log changes in a dataframe for filter operations (dropped rows/cols)."""
 
-    n_rows_before = len(df)
+    n_rows_before = df.shape[0]
     n_cols_before = df.shape[1]
     before_columns = df.columns
 
-    df = _call(df, function_name, *args, **kwargs)
+    df = _callattr(df, function_name, *args, **kwargs)
 
-    n_rows_after = len(df)
+    n_rows_after = df.shape[0]
     n_rows_dropped = n_rows_before - n_rows_after
 
     n_cols_after = df.shape[1]
     n_cols_dropped = n_cols_before - n_cols_after
 
-    if n_rows_before < n_rows_after:
+    if n_rows_dropped < 0:
         raise AssertionError(
             f"function: {function_name} added rows, it is not a valid filter operation"
         )
-    if n_cols_before < n_cols_after:
+    if n_cols_dropped < 0:
         raise AssertionError(
             f"function: {function_name} added columns, "
             "it is not a valid filter operation"
         )
+
+    dropped_rows = n_rows_dropped > 0
+    dropped_cols = n_cols_dropped > 0
+
     if n_rows_before == 0:
         logger.info("%s: empty input dataframe", function_name)
     elif n_rows_after == 0:
         logger.critical("%s: dropped all rows", function_name)
-    elif n_cols_dropped > 0:
-        dropped_cols = sorted(set(before_columns) - set(df.columns))
+    elif dropped_cols and dropped_rows:
+        dropped_cols = before_columns.difference(df.columns).tolist()
+        logger.info(
+            "%s: dropped %s (%s) and %s (%s), %s remaining",
+            function_name,
+            plural(n_cols_dropped, COLUMN),
+            percent(n_cols_dropped, n_cols_before),
+            plural(n_rows_dropped, ROW),
+            percent(n_rows_dropped, n_rows_before),
+            plural(n_rows_after, ROW),
+        )
+    elif dropped_cols:
+        dropped_cols = before_columns.difference(df.columns).tolist()
         logger.info(
             "%s: dropped %d columns (%s): %s",
             function_name,
@@ -56,18 +73,17 @@ def log_filter(
             percent(n_cols_dropped, n_cols_before),
             dropped_cols,
         )
-    elif n_rows_dropped == 0:
-        logger.info("%s: dropped no rows", function_name)
-    else:
+    elif dropped_rows:
         logger.info(
-            "%s: dropped %d rows (%s), %d rows remaining",
+            "%s: dropped %s (%s), %s remaining",
             function_name,
-            n_rows_dropped,
+            plural(n_rows_dropped, ROW),
             percent(n_rows_dropped, n_rows_before),
-            n_rows_after,
+            plural(n_rows_after, ROW),
         )
+    else:
+        logger.info("%s: dropped no rows", function_name)
 
-    # TODO: Refactor
     logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
@@ -77,22 +93,25 @@ def log_change_index(
     df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
 
+    before_index = summarize(df.index, 3)
     before_index_name = df.index.name
     before_index_type = type(df.index).__name__
 
-    df = _call(df, function_name, *args, **kwargs)
+    df = _callattr(df, function_name, *args, **kwargs)
 
+    after_index = summarize(df.index, 3)
     after_index_name = df.index.name
     after_index_type = type(df.index).__name__
 
-    # TODO: Could show first and last vals, not sure if important...
     logger.info(
-        "%s: set from '%s' (%s) to '%s' (%s)",
+        "%s: set from '%s' (%s): %s to '%s' (%s): %s",
         function_name,
         before_index_name,
         before_index_type,
+        before_index,
         after_index_name,
         after_index_type,
+        after_index,
     )
     logger.debug("args: %s, kwargs: %s", args, kwargs)
 
@@ -106,29 +125,32 @@ def log_rename(
     before_index = df.index
     before_columns = df.columns
 
-    df = _call(df, function_name, *args, **kwargs)
+    df = _callattr(df, function_name, *args, **kwargs)
 
     new_columns = df.columns.difference(before_columns).tolist()
     new_rows = df.index.difference(before_index).tolist()
     if new_columns and new_rows:
         logger.info(
-            "%s: renamed %d rows and %d columns. rows: %s. columns: %s",
+            "%s: renamed %s and %s. rows: %s. columns: %s",
             function_name,
-            len(new_rows),
-            len(new_columns),
+            plural(len(new_rows), ROW),
+            plural(len(new_columns), COLUMN),
             summarize(new_rows),
             summarize(new_columns),
         )
     elif new_columns:
         logger.info(
-            "%s: renamed %d columns: %s",
+            "%s: renamed %s: %s",
             function_name,
-            len(new_columns),
+            plural(len(new_columns), COLUMN),
             summarize(new_columns),
         )
     elif new_rows:
         logger.info(
-            "%s: renamed %d rows: %s", function_name, len(new_rows), summarize(new_rows)
+            "%s: renamed %s: %s",
+            function_name,
+            plural(len(new_rows), ROW),
+            summarize(new_rows),
         )
     else:
         logger.info("%s: renamed nothing")
@@ -148,7 +170,7 @@ def log_reshape(
     before_shape = df.shape
     before_columns = df.columns
 
-    df = _call(df, function_name, *args, **kwargs)
+    df = _callattr(df, function_name, *args, **kwargs)
 
     logger.info(
         "%s: reshaped from %s %s to %s %s",
@@ -170,16 +192,15 @@ def log_fillna(
     n_obs = df.shape[0] * df.shape[1]
     before_na = df.isna()
 
-    df = _call(df, function_name, *args, **kwargs)
+    df = _callattr(df, function_name, *args, **kwargs)
 
     filled_na = df.notna() & before_na
     n_filled = filled_na.sum().sum()
 
     logger.info(
-        "%s: filled %d/%d (%s) observations",
+        "%s: filled %s (%s)",
         function_name,
-        n_filled,
-        n_obs,
+        plural(n_filled, OBSERVATION),
         percent(n_filled, n_obs),
     )
     logger.debug("args: %s, kwargs: %s", args, kwargs)

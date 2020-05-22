@@ -1,7 +1,6 @@
 import logging
 from unittest.mock import Mock
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -33,10 +32,10 @@ def _test_log_function(caplog, before, after, expected_record_tuples):
     ("before", "after", "expected_record_tuples"),
     (
         pytest.param(
-            [0, 1, 2],
-            [0, 1, 2],
-            [("pdlog", logging.INFO, "fn: dropped no rows")],
-            id="no_rows",
+            [],
+            [],
+            [("pdlog", logging.INFO, "fn: empty input dataframe")],
+            id="empty_df",
         ),
         pytest.param(
             [0, 1, 2],
@@ -45,34 +44,34 @@ def _test_log_function(caplog, before, after, expected_record_tuples):
             id="all_rows",
         ),
         pytest.param(
+            {"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
+            {"x": [1]},
+            [
+                (
+                    "pdlog",
+                    logging.INFO,
+                    "fn: dropped 2 columns (67%) and 2 rows (67%), 1 row remaining",
+                )
+            ],
+            id="some_rows_and_cols",
+        ),
+        pytest.param(
             [0, 1, 2],
             [0, 1],
-            [("pdlog", logging.INFO, "fn: dropped 1 rows (33%), 2 rows remaining")],
+            [("pdlog", logging.INFO, "fn: dropped 1 row (33%), 2 rows remaining")],
             id="some_rows",
-        ),
-        pytest.param(
-            np.arange(101),
-            np.arange(100),
-            [("pdlog", logging.INFO, "fn: dropped 1 rows (<1%), 100 rows remaining")],
-            id="less_1pct_rows",
-        ),
-        pytest.param(
-            np.arange(101),
-            [0],
-            [("pdlog", logging.INFO, "fn: dropped 100 rows (>99%), 1 rows remaining")],
-            id="greater_99pct_rows",
-        ),
-        pytest.param(
-            [],
-            [],
-            [("pdlog", logging.INFO, "fn: empty input dataframe")],
-            id="empty_df",
         ),
         pytest.param(
             {"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
             {"x": [1, 2, 3]},
             [("pdlog", logging.INFO, "fn: dropped 2 columns (67%): ['y', 'z']")],
             id="some_cols",
+        ),
+        pytest.param(
+            [0, 1, 2],
+            [0, 1, 2],
+            [("pdlog", logging.INFO, "fn: dropped no rows")],
+            id="no_rows",
         ),
         # TODO: Add assign
         # TODO: Add reindex
