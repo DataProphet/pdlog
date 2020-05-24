@@ -84,8 +84,6 @@ def log_filter(
     else:
         logger.info("%s: dropped no rows", function_name)
 
-    logger.debug("args: %s, kwargs: %s", args, kwargs)
-
     return df
 
 
@@ -113,7 +111,6 @@ def log_change_index(
         after_index_type,
         after_index,
     )
-    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
@@ -155,11 +152,6 @@ def log_rename(
     else:
         logger.info("%s: renamed nothing", function_name)
 
-    # TODO: Refactor to a util function log func args?
-    # TODO: util function should also summarize kwargs?
-    kwargs = {k: v.__name__ if callable(v) else v for k, v in kwargs.items()}
-    logger.debug("args: %s, kwargs: %s", args, kwargs)
-
     return df
 
 
@@ -180,7 +172,6 @@ def log_reshape(
         summarize(before_columns, max_items=5),
         summarize(df.columns, max_items=5),
     )
-    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
 
@@ -203,6 +194,5 @@ def log_fillna(
         plural(n_filled, OBSERVATION),
         percent(n_filled, n_obs),
     )
-    logger.debug("args: %s, kwargs: %s", args, kwargs)
 
     return df
