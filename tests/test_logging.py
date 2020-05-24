@@ -6,6 +6,7 @@ import pytest
 from numpy import nan
 
 from pdlog.logging import log_change_index
+from pdlog.logging import log_fillna
 from pdlog.logging import log_filter
 from pdlog.logging import log_rename
 from pdlog.logging import log_reshape
@@ -216,4 +217,16 @@ def test_log_rename(
 def test_log_reshape(caplog, before_df, after_df, expected_level, expected_msg):
     _test_log_function(
         log_reshape, caplog, before_df, after_df, expected_level, expected_msg
+    )
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "expected_level", "expected_msg"),
+    (([0, 1, nan], [0, 1, 1], logging.INFO, "fn: filled 1 observation (33.0%)"),),
+)
+def test_log_fillna(caplog, before, after, expected_level, expected_msg):
+    before_df = pd.DataFrame(before)
+    after_df = pd.DataFrame(after)
+    _test_log_function(
+        log_fillna, caplog, before_df, after_df, expected_level, expected_msg
     )
