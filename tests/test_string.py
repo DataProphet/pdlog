@@ -50,9 +50,6 @@ class _FakeSequence(Sequence[Any]):
     def __len__(self):
         return len(self.data)
 
-    def __str__(self):
-        return f"_FakeSequence({self.data})"
-
 
 @pytest.mark.parametrize(
     ("items", "expected"),
