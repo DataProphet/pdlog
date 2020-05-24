@@ -138,13 +138,6 @@ def log_rename(
             summarize(new_rows),
             summarize(new_columns),
         )
-    elif new_columns:
-        logger.info(
-            "%s: renamed %s: %s",
-            function_name,
-            plural(len(new_columns), COLUMN),
-            summarize(new_columns),
-        )
     elif new_rows:
         logger.info(
             "%s: renamed %s: %s",
@@ -152,8 +145,15 @@ def log_rename(
             plural(len(new_rows), ROW),
             summarize(new_rows),
         )
+    elif new_columns:
+        logger.info(
+            "%s: renamed %s: %s",
+            function_name,
+            plural(len(new_columns), COLUMN),
+            summarize(new_columns),
+        )
     else:
-        logger.info("%s: renamed nothing")
+        logger.info("%s: renamed nothing", function_name)
 
     # TODO: Refactor to a util function log func args?
     # TODO: util function should also summarize kwargs?

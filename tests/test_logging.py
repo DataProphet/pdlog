@@ -6,6 +6,7 @@ import pytest
 
 from pdlog.logging import log_change_index
 from pdlog.logging import log_filter
+from pdlog.logging import log_rename
 
 
 @pytest.fixture
@@ -119,4 +120,71 @@ def test_log_change_index(caplog, before, after, expected_level, expected_msg):
     after_df = pd.DataFrame(index=after)
     _test_log_function(
         log_change_index, caplog, before_df, after_df, expected_level, expected_msg
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "before_index",
+        "before_columns",
+        "after_index",
+        "after_columns",
+        "expected_level",
+        "expected_msg",
+    ),
+    (
+        pytest.param(
+            ["foo", "bar", "baz"],
+            ["foo", "bar", "baz"],
+            ["foo_1", "bar", "baz"],
+            ["foo", "bar_1", "baz_1"],
+            logging.INFO,
+            (
+                "fn: renamed 1 row and 2 columns. "
+                "rows: ['foo_1']. columns: ['bar_1', 'baz_1']"
+            ),
+            id="rows_and_columns",
+        ),
+        pytest.param(
+            ["foo", "bar", "baz"],
+            [],
+            ["foo", "bar_1", "baz_1"],
+            [],
+            logging.INFO,
+            "fn: renamed 2 rows: ['bar_1', 'baz_1']",
+            id="rows",
+        ),
+        pytest.param(
+            [],
+            ["foo", "bar", "baz"],
+            [],
+            ["foo", "bar_1", "baz_1"],
+            logging.INFO,
+            "fn: renamed 2 columns: ['bar_1', 'baz_1']",
+            id="columns",
+        ),
+        pytest.param(
+            ["foo", "bar", "baz"],
+            ["foo", "bar", "baz"],
+            ["foo", "bar", "baz"],
+            ["foo", "bar", "baz"],
+            logging.INFO,
+            "fn: renamed nothing",
+            id="nothing",
+        ),
+    ),
+)
+def test_log_rename(
+    caplog,
+    before_index,
+    after_index,
+    before_columns,
+    after_columns,
+    expected_level,
+    expected_msg,
+):
+    before_df = pd.DataFrame(index=before_index, columns=before_columns)
+    after_df = pd.DataFrame(index=after_index, columns=after_columns)
+    _test_log_function(
+        log_rename, caplog, before_df, after_df, expected_level, expected_msg
     )
