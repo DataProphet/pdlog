@@ -16,15 +16,6 @@ class LogAccessor:
     def drop_duplicates(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         return logging.log_filter(self._data, "drop_duplicates", *args, **kwargs)
 
-    def iloc(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        return logging.log_filter(self._data, "iloc", *args, **kwargs)
-
-    def loc(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        return logging.log_filter(self._data, "loc", *args, **kwargs)
-
-    def __getitem__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        return logging.log_filter(self._data, "__getitem__", *args, **kwargs)
-
     def query(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         return logging.log_filter(self._data, "query", *args, **kwargs)
 
@@ -53,7 +44,7 @@ class LogAccessor:
         return logging.log_reshape(self._data, "pivot", *args, **kwargs)
 
     def melt(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        return logging.log_reshape(self._data, "pivot", *args, **kwargs)
+        return logging.log_reshape(self._data, "melt", *args, **kwargs)
 
     def fillna(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         return logging.log_fillna(self._data, "fillna", *args, **kwargs)
@@ -62,4 +53,4 @@ class LogAccessor:
         return logging.log_fillna(self._data, "bfill", *args, **kwargs)
 
     def ffill(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        return logging.log_fillna(self._data, "fillna", *args, **kwargs)
+        return logging.log_fillna(self._data, "ffill", *args, **kwargs)
