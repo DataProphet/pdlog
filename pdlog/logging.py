@@ -173,11 +173,11 @@ def log_reshape(
     df = _callattr(df, function_name, *args, **kwargs)
 
     logger.info(
-        "%s: reshaped from %s %s to %s %s",
+        "%s: reshaped from %s to %s. old columns: %s. new columns: %s",
         function_name,
         before_shape,
-        summarize(before_columns, max_items=5),
         df.shape,
+        summarize(before_columns, max_items=5),
         summarize(df.columns, max_items=5),
     )
     logger.debug("args: %s, kwargs: %s", args, kwargs)

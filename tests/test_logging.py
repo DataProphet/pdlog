@@ -3,10 +3,12 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
+from numpy import nan
 
 from pdlog.logging import log_change_index
 from pdlog.logging import log_filter
 from pdlog.logging import log_rename
+from pdlog.logging import log_reshape
 
 
 @pytest.fixture
@@ -187,4 +189,31 @@ def test_log_rename(
     after_df = pd.DataFrame(index=after_index, columns=after_columns)
     _test_log_function(
         log_rename, caplog, before_df, after_df, expected_level, expected_msg
+    )
+
+
+@pytest.mark.parametrize(
+    ("before_df", "after_df", "expected_level", "expected_msg"),
+    (
+        (
+            pd.DataFrame(
+                {
+                    "timestamp": ["2019", "2019", "2020"],
+                    "feature": ["a", "b", "a"],
+                    "value": [0, 1, 2],
+                }
+            ),
+            pd.DataFrame({"a": [0, 2], "b": [1, nan]}, index=["2019", "2020"]),
+            logging.INFO,
+            (
+                "fn: reshaped from (3, 3) to (2, 2). "
+                "old columns: ['timestamp', 'feature', 'value']. "
+                "new columns: ['a', 'b']"
+            ),
+        ),
+    ),
+)
+def test_log_reshape(caplog, before_df, after_df, expected_level, expected_msg):
+    _test_log_function(
+        log_reshape, caplog, before_df, after_df, expected_level, expected_msg
     )
