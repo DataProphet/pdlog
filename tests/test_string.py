@@ -1,10 +1,14 @@
+from datetime import date
+from datetime import datetime
 from typing import Any
 from typing import Sequence
 
 import pytest
+from pandas import Timestamp
 
 from pdlog.string import percent
 from pdlog.string import plural
+from pdlog.string import prettify
 from pdlog.string import summarize
 
 
@@ -64,7 +68,22 @@ class _FakeSequence(Sequence[Any]):
         ),
         # Class name is removed from summary string
         pytest.param(_FakeSequence([1, 2, 3]), "[1, 2, 3]", id="summarize_class"),
+        pytest.param(
+            [datetime(2020, 1, 1)], "['2020-01-01 00:00:00']", id="summarize_datetimes"
+        ),
+        pytest.param([date(2020, 1, 1)], "['2020-01-01']", id="summarize_dates"),
     ),
 )
 def test_summarize(items, expected):
     assert summarize(items, max_items=3) == expected
+
+
+@pytest.mark.parametrize(
+    ("obj", "expected"),
+    (
+        (Timestamp("2020-01-01 00:00:00"), "2020-01-01 00:00:00"),
+        (Timestamp("2020-01-01", freq="D"), "2020-01-01 00:00:00"),
+    ),
+)
+def test_prettify(obj, expected):
+    assert prettify(obj) == expected

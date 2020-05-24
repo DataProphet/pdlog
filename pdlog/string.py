@@ -1,3 +1,5 @@
+from datetime import date
+from datetime import datetime
 from typing import Any
 from typing import Sequence
 
@@ -32,6 +34,11 @@ _ELLIPSIS = _Ellipsis()
 def summarize(items: Sequence[Any], max_items: int = 3) -> str:
     if len(items) > max_items:
         items = [items[0], _ELLIPSIS, items[-1]]
-    else:
-        items = list(items)
-    return str(items)
+    return str([prettify(x) for x in items])
+
+
+def prettify(obj: Any) -> str:
+    if isinstance(obj, (datetime, date)):
+        # use str(datetime) instead of repr(datetime), it's more concise
+        return str(obj)
+    return obj
