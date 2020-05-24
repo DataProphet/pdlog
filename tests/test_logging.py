@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
+from pdlog.logging import log_change_index
 from pdlog.logging import log_filter
 
 
@@ -13,15 +14,12 @@ def caplog(caplog):
     return caplog
 
 
-def _test_log_function(caplog, before, after, expected_record_tuples):
-    before_df = pd.DataFrame(before)
-    after_df = pd.DataFrame(after)
-
+def _test_log_function(log_fn, caplog, before_df, after_df, expected_record_tuples):
     fn_args = Mock()
     fn_kwargs = Mock()
     before_df.fn = Mock(return_value=after_df)
 
-    log_filter(before_df, "fn", fn_args, fn_kwargs)
+    log_fn(before_df, "fn", fn_args, fn_kwargs)
 
     before_df.fn.assert_called_once_with(fn_args, fn_kwargs)
 
@@ -73,14 +71,12 @@ def _test_log_function(caplog, before, after, expected_record_tuples):
             [("pdlog", logging.INFO, "fn: dropped no rows")],
             id="no_rows",
         ),
-        # TODO: Add assign
-        # TODO: Add reindex
-        # TODO: Add reshape
-        # TODO: Add fillna
     ),
 )
 def test_log_filter(caplog, before, after, expected_record_tuples):
-    _test_log_function(caplog, before, after, expected_record_tuples)
+    before_df = pd.DataFrame(before)
+    after_df = pd.DataFrame(after)
+    _test_log_function(log_filter, caplog, before_df, after_df, expected_record_tuples)
 
 
 @pytest.mark.parametrize(
@@ -108,3 +104,31 @@ def test_log_filter_raises(before, after, error, error_msg):
     before_df.fn = Mock(return_value=after_df)
     with pytest.raises(error, match=error_msg):
         log_filter(before_df, "fn")
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "expected_record_tuples"),
+    (
+        (
+            pd.RangeIndex(3),
+            pd.date_range("2020-01-01", "2020-01-03", name="date"),
+            [
+                (
+                    "pdlog",
+                    logging.INFO,
+                    (
+                        "fn: set from 'None' (RangeIndex): [0, 1, 2] to 'date' "
+                        "(DatetimeIndex): ['2020-01-01 00:00:00', "
+                        "'2020-01-02 00:00:00', '2020-01-03 00:00:00']"
+                    ),
+                )
+            ],
+        ),
+    ),
+)
+def test_log_change_index(caplog, before, after, expected_record_tuples):
+    before_df = pd.DataFrame(index=before)
+    after_df = pd.DataFrame(index=after)
+    _test_log_function(
+        log_change_index, caplog, before_df, after_df, expected_record_tuples
+    )
