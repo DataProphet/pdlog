@@ -14,7 +14,9 @@ def caplog(caplog):
     return caplog
 
 
-def _test_log_function(log_fn, caplog, before_df, after_df, expected_record_tuples):
+def _test_log_function(
+    log_fn, caplog, before_df, after_df, expected_level, expected_msg
+):
     fn_args = Mock()
     fn_kwargs = Mock()
     before_df.fn = Mock(return_value=after_df)
@@ -23,60 +25,51 @@ def _test_log_function(log_fn, caplog, before_df, after_df, expected_record_tupl
 
     before_df.fn.assert_called_once_with(fn_args, fn_kwargs)
 
-    assert caplog.record_tuples == expected_record_tuples
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.levelno == expected_level
+    assert record.message == expected_msg
 
 
 @pytest.mark.parametrize(
-    ("before", "after", "expected_record_tuples"),
+    ("before", "after", "expected_level", "expected_msg"),
     (
+        pytest.param([], [], logging.INFO, "fn: empty input dataframe", id="empty_df"),
         pytest.param(
-            [],
-            [],
-            [("pdlog", logging.INFO, "fn: empty input dataframe")],
-            id="empty_df",
-        ),
-        pytest.param(
-            [0, 1, 2],
-            [],
-            [("pdlog", logging.CRITICAL, "fn: dropped all rows")],
-            id="all_rows",
+            [0, 1, 2], [], logging.CRITICAL, "fn: dropped all rows", id="all_rows"
         ),
         pytest.param(
             {"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
             {"x": [1]},
-            [
-                (
-                    "pdlog",
-                    logging.INFO,
-                    "fn: dropped 2 columns (67%) and 2 rows (67%), 1 row remaining",
-                )
-            ],
+            logging.INFO,
+            "fn: dropped 2 columns (67%) and 2 rows (67%), 1 row remaining",
             id="some_rows_and_cols",
         ),
         pytest.param(
             [0, 1, 2],
             [0, 1],
-            [("pdlog", logging.INFO, "fn: dropped 1 row (33%), 2 rows remaining")],
+            logging.INFO,
+            "fn: dropped 1 row (33%), 2 rows remaining",
             id="some_rows",
         ),
         pytest.param(
             {"x": [1, 2, 3], "y": [4, 5, 6], "z": [7, 8, 9]},
             {"x": [1, 2, 3]},
-            [("pdlog", logging.INFO, "fn: dropped 2 columns (67%): ['y', 'z']")],
+            logging.INFO,
+            "fn: dropped 2 columns (67%): ['y', 'z']",
             id="some_cols",
         ),
         pytest.param(
-            [0, 1, 2],
-            [0, 1, 2],
-            [("pdlog", logging.INFO, "fn: dropped no rows")],
-            id="no_rows",
+            [0, 1, 2], [0, 1, 2], logging.INFO, "fn: dropped no rows", id="no_rows"
         ),
     ),
 )
-def test_log_filter(caplog, before, after, expected_record_tuples):
+def test_log_filter(caplog, before, after, expected_level, expected_msg):
     before_df = pd.DataFrame(before)
     after_df = pd.DataFrame(after)
-    _test_log_function(log_filter, caplog, before_df, after_df, expected_record_tuples)
+    _test_log_function(
+        log_filter, caplog, before_df, after_df, expected_level, expected_msg
+    )
 
 
 @pytest.mark.parametrize(
@@ -107,28 +100,23 @@ def test_log_filter_raises(before, after, error, error_msg):
 
 
 @pytest.mark.parametrize(
-    ("before", "after", "expected_record_tuples"),
+    ("before", "after", "expected_level", "expected_msg"),
     (
         (
             pd.RangeIndex(3),
             pd.date_range("2020-01-01", "2020-01-03", name="date"),
-            [
-                (
-                    "pdlog",
-                    logging.INFO,
-                    (
-                        "fn: set from 'None' (RangeIndex): [0, 1, 2] to 'date' "
-                        "(DatetimeIndex): ['2020-01-01 00:00:00', "
-                        "'2020-01-02 00:00:00', '2020-01-03 00:00:00']"
-                    ),
-                )
-            ],
+            logging.INFO,
+            (
+                "fn: set from 'None' (RangeIndex): [0, 1, 2] to 'date' "
+                "(DatetimeIndex): ['2020-01-01 00:00:00', "
+                "'2020-01-02 00:00:00', '2020-01-03 00:00:00']"
+            ),
         ),
     ),
 )
-def test_log_change_index(caplog, before, after, expected_record_tuples):
+def test_log_change_index(caplog, before, after, expected_level, expected_msg):
     before_df = pd.DataFrame(index=before)
     after_df = pd.DataFrame(index=after)
     _test_log_function(
-        log_change_index, caplog, before_df, after_df, expected_record_tuples
+        log_change_index, caplog, before_df, after_df, expected_level, expected_msg
     )
