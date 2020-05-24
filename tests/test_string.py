@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Sequence
+
 import pytest
 
 from pdlog.string import percent
@@ -33,6 +36,20 @@ def test_percent(n, total, expected):
     assert percent(n, total) == expected
 
 
+class _FakeSequence(Sequence[Any]):
+    def __init__(self, data):
+        self.data = data
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __str__(self):
+        return f"_FakeSequence({self.data})"
+
+
 @pytest.mark.parametrize(
     ("items", "expected"),
     (
@@ -42,6 +59,11 @@ def test_percent(n, total, expected):
         pytest.param(
             ["1", "2", "3", "4"], "['1', ..., '4']", id="summarize_with_strings"
         ),
+        pytest.param(
+            ["1", "2", "3", "4"], "['1', ..., '4']", id="summarize_with_strings"
+        ),
+        # Class name is removed from summary string
+        pytest.param(_FakeSequence([1, 2, 3]), "[1, 2, 3]", id="summarize_class"),
     ),
 )
 def test_summarize(items, expected):

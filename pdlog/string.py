@@ -32,4 +32,6 @@ _ELLIPSIS = _Ellipsis()
 def summarize(items: Sequence[Any], max_items: int = 3) -> str:
     if len(items) > max_items:
         items = [items[0], _ELLIPSIS, items[-1]]
+    else:
+        items = list(items)
     return str(items)
