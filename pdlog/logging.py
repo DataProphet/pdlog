@@ -23,7 +23,16 @@ def _callattr(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
 def log_filter(
     df: pd.DataFrame, function_name: str, *args: Any, **kwargs: Any
 ) -> pd.DataFrame:
+    """
+    Perform a filter operation with logging.
 
+    Filter operations are those which drop rows and/or columns, for example,
+    `pd.DataFrame.loc`.
+
+    Although some methods, like `pd.DataFrame.set_index`, can be considered filter
+    operations, `log_filter` doesn't cater to their use-case thus they have their own
+    specific logging functions.
+    """
     n_rows_before = df.shape[0]
     n_cols_before = df.shape[1]
     before_columns = df.columns
@@ -67,9 +76,9 @@ def log_filter(
     elif dropped_cols:
         dropped_cols = before_columns.difference(df.columns).tolist()
         logger.info(
-            "%s: dropped %d columns (%s): %s",
+            "%s: dropped %s (%s): %s",
             function_name,
-            n_cols_dropped,
+            plural(n_cols_dropped, COLUMN),
             percent(n_cols_dropped, n_cols_before),
             dropped_cols,
         )
