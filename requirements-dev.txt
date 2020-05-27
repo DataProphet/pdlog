@@ -2,5 +2,7 @@ coverage
 black
 flake8
 mypy
+setuptools
 pandas
 pytest
+wheel
